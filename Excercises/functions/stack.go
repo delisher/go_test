@@ -23,7 +23,7 @@ func main() {
 
 	for i := 0; i < 15; i++ {
 		d := s.pop()
-		fmt.Printf("stack: %v and deleted %v\n", s, d)
+		fmt.Printf("stack: %v and deleted %v\n", s.data, d)
 	}
 }
 
@@ -49,7 +49,7 @@ func (s *stack) pop() int { // map reserved keyword in go
 func (s stack) String() string {
 	var str string
 	fmt.Printf("SI: %v\n", s.i)
-	for i := 0; i <= s.i-1; i++ {
+	for i := 0; i < s.i; i++ {
 		str = str + "[" + strconv.Itoa(i) + ":" + strconv.Itoa(s.data[i]) + "]"
 	}
 	return str

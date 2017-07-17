@@ -11,10 +11,9 @@ func main() {
 	dir := "d:/work/logs/logs"
 	files := []string{}
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
-		if f.IsDir() {
-			return nil // not a file.  ignore.
+		if !f.IsDir() {
+			files = append(files, path)
 		}
-		files = append(files, path)
 		return nil
 	})
 

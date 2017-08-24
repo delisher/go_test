@@ -4,15 +4,20 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	// "io"
 	"log"
 	"os"
 	"regexp"
 )
 
 type ErrorDescr struct {
-	Name          string
-	Number        int
-	FullErr       string
+	Name    string
+	Number  int
+	FullErr *FullErrText
+}
+
+type FullErrText struct {
+	Text          []byte
 	completeValue bool
 }
 
@@ -43,8 +48,23 @@ func (e *Parser) include(name string) bool {
 func (p *Parser) logToConsole() {
 	for k, _ := range p.Errors {
 		e := p.Errors[k]
-		fmt.Printf("%v errors:\n\n%v\n\n\n%v\n\n\n", e.Number, e.Name, e.FullErr)
+		fmt.Printf("%v errors:\n\n%v\n\n\n%v\n\n\n", e.Number, e.Name, string(e.FullErr.Text))
 	}
+}
+
+func isError(str []byte) bool {
+	return ErrorsRE.Match(str)
+}
+
+func NewFullError(str []byte) *FullErrText {
+	return &FullErrText{str, false}
+}
+
+func (fe *FullErrText) addText(str []byte) {
+	// fe.Text = fmt.Sprintf("%v\n%v", fe.Text, str)
+	fe.Text = append(fe.Text, str...)
+	// fe.Text.WriteString(str)
+	// fe.Text.WriteString("\n")
 }
 
 func (p *Parser) ParseLog() {
@@ -52,37 +72,29 @@ func (p *Parser) ParseLog() {
 		defer file.Close()
 
 		var lastErr bytes.Buffer
-		var lastErrText bytes.Buffer
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
-			ln := scanner.Text()
-			errName := errTextRE.FindString(ln)
+			ln := scanner.Bytes()
 			lastErrName := lastErr.String()
-			if ErrorsRE.MatchString(ln) {
-				if p.include(lastErrName) && !p.Errors[lastErrName].completeValue {
-					p.Errors[lastErrName].FullErr = lastErrText.String()
-					p.Errors[lastErrName].completeValue = true
+			if isError(ln) {
+				errName := string(errTextRE.Find(ln))
+				if p.include(lastErrName) && !p.Errors[lastErrName].FullErr.completeValue {
+					p.Errors[lastErrName].FullErr.completeValue = true
 				}
 				if p.include(errName) {
 					p.Errors[errName].Number++
 				} else {
-					p.Errors[errName] = &ErrorDescr{errName, 1, "", false}
-					lastErrText.Reset()
-					lastErrText.WriteString(ln)
-					lastErrText.WriteString("\n")
+					p.Errors[errName] = &ErrorDescr{errName, 1, NewFullError(ln)}
 				}
 				lastErr.Reset()
 				lastErr.WriteString(errName)
-				// fmt.Println("=========================", lastErr.String())
 			} else {
 				if p.include(lastErrName) {
-					if !p.Errors[lastErrName].completeValue && !Date_regExp.MatchString(ln) {
-						lastErrText.WriteString(ln)
-						lastErrText.WriteString("\n")
-					} else if Date_regExp.MatchString(ln) {
-						p.Errors[lastErrName].FullErr = lastErrText.String()
-						p.Errors[lastErrName].completeValue = true
+					if !p.Errors[lastErrName].FullErr.completeValue && !Date_regExp.Match(ln) {
+						p.Errors[lastErrName].FullErr.addText(ln)
+					} else if Date_regExp.Match(ln) {
+						p.Errors[lastErrName].FullErr.completeValue = true
 					}
 				}
 			}
